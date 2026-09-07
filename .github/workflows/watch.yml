@@ -1,0 +1,53 @@
+name: watch rank.uz
+
+on:
+  schedule:
+    # every 30 min. The daily 08:00 Tashkent summary is decided inside check.py,
+    # so a delayed GitHub cron still sends it exactly once per day.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      daily:
+        description: "Force the daily summary now"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: watch-rank-uz
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the registry
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WATCH_DOMAIN: rank.uz
+        run: python3 check.py ${{ inputs.daily && '--daily' || '' }}
+
+      - name: Save state
+        run: |
+          if [ -z "$(git status --porcelain state.json)" ]; then
+            echo "state unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          git commit -m "state: $(date -u +%FT%TZ)"
+          for i in 1 2 3; do
+            if git pull --rebase --autostash && git push; then
+              exit 0
+            fi
+            sleep 5
+          done
+          # never fail the run over a push race - the check itself already ran
+          echo "could not push state.json"
