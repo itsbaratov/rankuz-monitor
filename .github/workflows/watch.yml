@@ -2,9 +2,11 @@ name: watch rank.uz
 
 on:
   schedule:
-    # every 30 min. The daily 08:00 Tashkent summary is decided inside check.py,
-    # so a delayed GitHub cron still sends it exactly once per day.
-    - cron: "*/30 * * * *"
+    # Every 30 min, deliberately offset off :00 and :30 - GitHub's docs warn that
+    # "high load times include the start of every hour", and queued jobs can be
+    # dropped outright. The daily 08:00 Tashkent summary is decided inside
+    # check.py, so a delayed or skipped cron still sends it exactly once a day.
+    - cron: "13,43 * * * *"
   workflow_dispatch:
     inputs:
       daily:
