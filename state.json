@@ -1,13 +1,13 @@
 {
   "changes": [],
-  "checks_since_report": 3,
-  "checks_total": 4,
+  "checks_since_report": 0,
+  "checks_total": 5,
   "consecutive_failures": 0,
   "domain": "rank.uz",
   "failures_since_report": 0,
-  "last_check_at": "2026-09-08T04:44:46+05:00",
-  "last_report_at": "2026-09-07T16:45:03+05:00",
-  "last_report_date": "2026-09-07",
+  "last_check_at": "2026-09-08T09:29:08+05:00",
+  "last_report_at": "2026-09-08T09:29:08+05:00",
+  "last_report_date": "2026-09-08",
   "snapshot": {
     "created": "13.08.2019",
     "expires": "13.08.2026",
