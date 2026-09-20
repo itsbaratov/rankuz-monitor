@@ -81,25 +81,19 @@ a dry run.
 
 ## Polling schedule and Actions limits
 
-Every job run is billed **rounded up to a full minute**, so runs/day = minutes/day.
-Private repos get 2,000 Linux minutes/month; public repos are unmetered.
+The repo is **public**, so Actions minutes are unmetered and the request rate is free.
 
-| Plan | Runs in Sept | Private repo |
-|---|---|---|
-| `*/30` all month | ~1,440 | fits (2,000 cap) |
-| `*/30`, then `*/15` from 20 Sept | ~1,680 | fits |
-| `*/30`, then `*/10` from 20 Sept | ~2,208 | **over by ~210** |
-| `*/30`, then `*/5` from 20 Sept | ~3,790 | **over by ~1,790** |
+Measured reality: GitHub delivered only **14% of scheduled runs** (83 of ~598) over
+the first 13 days on the Free plan — a check every 3.65h instead of every 30 min,
+worst gap 6.9h. Its docs call `schedule` best-effort and warn that queued jobs
+"may be dropped." So the cron rate is a *request*, not a guarantee, and the way to
+raise the delivered rate is to ask for more.
 
-The plan: stay on `*/30` until ~19 September, then switch to `*/10` for the drop
-window — and **make the repo public at the same time**, because on a private repo
-the default spending limit is $0, so Actions simply stops when the 2,000 minutes
-run out. That would kill the monitor in the exact week it matters.
+Current: `2-59/5 * * * *` (288 requests/day) for the drop window.
+After the domain resolves, put it back to `13,43 * * * *`.
 
-`*/5` is not worth it. GitHub's own docs say scheduled runs "can be delayed during
-periods of high load" and that "some queued jobs may be dropped" — so a 5-minute
-cron does not actually give 5-minute resolution. And the realistic path is a UZEX
-auction that runs for ~5 days, where being 20 minutes late costs nothing.
+The 08:00 Tashkent summary is decided in `check.py`, not by a second cron, so a
+dropped or delayed run still sends it exactly once a day.
 
 ## Things worth knowing
 

@@ -2,11 +2,12 @@ name: watch rank.uz
 
 on:
   schedule:
-    # Every 30 min, deliberately offset off :00 and :30 - GitHub's docs warn that
-    # "high load times include the start of every hour", and queued jobs can be
-    # dropped outright. The daily 08:00 Tashkent summary is decided inside
-    # check.py, so a delayed or skipped cron still sends it exactly once a day.
-    - cron: "13,43 * * * *"
+    # Drop window (est. 23 Sep): every 5 min, offset off :00 and :05-multiples of
+    # the hour top. GitHub delivers only ~14% of scheduled runs on this repo, so
+    # asking for 288/day is what actually yields a check every 30-60 min. Public
+    # repo => unmetered minutes, so the request rate costs nothing.
+    # After the domain resolves, drop back to "13,43 * * * *".
+    - cron: "2-59/5 * * * *"
   workflow_dispatch:
     inputs:
       daily:
