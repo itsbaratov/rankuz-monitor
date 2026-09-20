@@ -14,6 +14,10 @@ on:
         description: "Force the daily summary on the first check"
         type: boolean
         default: false
+      duration:
+        description: "Loop length in seconds (default 19800 = 5h30m). Use 900 to smoke-test."
+        type: string
+        default: "19800"
 
 permissions:
   contents: write
@@ -35,7 +39,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           WATCH_DOMAIN: rank.uz
           INTERVAL: "300"
-          DURATION: "19800"       # 5h30m
+          DURATION: ${{ inputs.duration || '19800' }}   # default 5h30m
         run: |
           set -u
           git config user.name "github-actions[bot]"
