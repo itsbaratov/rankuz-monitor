@@ -2,16 +2,16 @@ name: watch rank.uz
 
 on:
   schedule:
-    # Drop window (est. 23 Sep): every 5 min, offset off :00 and :05-multiples of
-    # the hour top. GitHub delivers only ~14% of scheduled runs on this repo, so
-    # asking for 288/day is what actually yields a check every 30-60 min. Public
-    # repo => unmetered minutes, so the request rate costs nothing.
-    # After the domain resolves, drop back to "13,43 * * * *".
+    # This is only a KEEPALIVE now. GitHub delivers ~6-7 of these a day no matter
+    # what rate we ask for (measured: 288 requests/day -> 6 runs). Each delivered
+    # run starts a 5.5h loop that checks every 5 minutes, so the cron only has to
+    # fire once per loop length to keep the chain unbroken - which it comfortably
+    # does. This is how we get real 5-minute checks out of a throttled scheduler.
     - cron: "2-59/5 * * * *"
   workflow_dispatch:
     inputs:
       daily:
-        description: "Force the daily summary now"
+        description: "Force the daily summary on the first check"
         type: boolean
         default: false
 
@@ -25,32 +25,53 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 350          # under GitHub's 6h hard cap
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check the registry
+      - name: Watch loop - check every 5 min for 5.5h
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           WATCH_DOMAIN: rank.uz
-        run: python3 check.py ${{ inputs.daily && '--daily' || '' }}
-
-      - name: Save state
+          INTERVAL: "300"
+          DURATION: "19800"       # 5h30m
         run: |
-          if [ -z "$(git status --porcelain state.json)" ]; then
-            echo "state unchanged"
-            exit 0
-          fi
+          set -u
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state.json
-          git commit -m "state: $(date -u +%FT%TZ)"
-          for i in 1 2 3; do
-            if git pull --rebase --autostash && git push; then
-              exit 0
+
+          push_state () {
+            git add state.json 2>/dev/null || return 0
+            git diff --cached --quiet 2>/dev/null && return 0
+            git commit -q -m "state: $(date -u +%FT%TZ)" 2>/dev/null || return 0
+            for _ in 1 2 3; do
+              if git pull --rebase --autostash -q && git push -q; then return 0; fi
+              sleep 5
+            done
+            echo "  (state push failed - alert already sent, continuing)"
+          }
+
+          sig () {
+            python3 -c "import json;d=json.load(open('state.json'));s=d.get('snapshot') or {};print(s.get('state'),s.get('status_text'),s.get('expires'),len(d.get('changes',[])),d.get('last_report_date'))" 2>/dev/null || echo unreadable
+          }
+
+          END=$(( $(date +%s) + DURATION ))
+          LAST=""; i=0; pushes=0
+          FLAG="${{ inputs.daily && '--daily' || '' }}"
+
+          while [ "$(date +%s)" -lt "$END" ]; do
+            i=$(( i + 1 ))
+            echo "--- check $i at $(date -u +%H:%M:%S) UTC ---"
+            python3 check.py $FLAG || echo "  check.py exited non-zero"
+            FLAG=""
+            NOW="$(sig)"
+            # push immediately when anything meaningful moved, else every ~2h
+            if [ "$NOW" != "$LAST" ] || [ $(( i % 24 )) -eq 0 ]; then
+              push_state; pushes=$(( pushes + 1 )); LAST="$NOW"
             fi
-            sleep 5
+            if [ "$(date +%s)" -lt "$END" ]; then sleep "$INTERVAL"; fi
           done
-          # never fail the run over a push race - the check itself already ran
-          echo "could not push state.json"
+
+          push_state
+          echo "loop finished: $i checks, $pushes state pushes"
