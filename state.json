@@ -1,11 +1,11 @@
 {
   "changes": [],
-  "checks_since_report": 0,
-  "checks_total": 294,
+  "checks_since_report": 19,
+  "checks_total": 313,
   "consecutive_failures": 0,
   "domain": "rank.uz",
   "failures_since_report": 0,
-  "last_check_at": "2026-09-22T08:02:30+05:00",
+  "last_check_at": "2026-09-22T09:38:09+05:00",
   "last_report_at": "2026-09-22T08:02:30+05:00",
   "last_report_date": "2026-09-22",
   "snapshot": {
